@@ -128,7 +128,11 @@
   transition: transform 0.35s ease, box-shadow 0.35s ease;
 }
 
-.process-card:hover,
+.process-card:hover {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 28px 64px rgba(17, 17, 17, 0.12);
+}
+
 .calendar-day:hover,
 .slot-chip:hover,
 .service-tag:hover,
@@ -136,6 +140,10 @@
 .sidebar-link:hover,
 .icon-chip:hover {
   transform: translateY(-4px);
+}
+
+.appointment-grid--three .process-card:hover {
+  transform: translateY(-6px) scale(1.03);
 }
 
 .process-card__icon {
