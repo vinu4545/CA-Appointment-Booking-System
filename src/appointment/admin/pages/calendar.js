@@ -1,3 +1,3 @@
 import { initProtectedAdminPage } from './admin-page-bootstrap.js';
 
-initProtectedAdminPage({ activeSection: 'Appointments' });
+initProtectedAdminPage({ activeSection: 'Calendar' });

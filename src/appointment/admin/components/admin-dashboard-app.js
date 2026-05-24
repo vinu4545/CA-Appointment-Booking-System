@@ -1,12 +1,13 @@
 import { buildModalMarkup, hideModal, showModal } from '../../shared/components/modal.js';
+import { ADMIN_ROUTES, signOutAdmin } from '../../shared/services/auth.js';
 import { adminAppointments, calendarLegend, sidebarItems, slotManagementDefaults, statsCards } from '../data/mock-dashboard-data.js';
 import { getBlockedDates, setDateAvailability } from '../../shared/services/availability-store.js';
 import { updateAppointmentStatus } from '../../shared/services/appointment-api.js';
 
-function getInitialState() {
+function getInitialState(activeSection = 'Dashboard') {
   return {
     searchTerm: '',
-    activeSection: 'Dashboard',
+    activeSection,
     selectedAppointment: adminAppointments[0] || null,
     appointments: [...adminAppointments],
     blockedDates: getBlockedDates(),
@@ -572,6 +573,12 @@ function bindAdminInteractions(container, state, rerender) {
   container.querySelectorAll('.sidebar-link').forEach((button) => {
     button.addEventListener('click', () => {
       state.activeSection = button.getAttribute('data-nav-item');
+      if (state.activeSection === 'Logout') {
+        signOutAdmin().finally(() => {
+          window.location.assign(ADMIN_ROUTES.booking);
+        });
+        return;
+      }
       rerender(false);
     });
   });
@@ -697,9 +704,9 @@ function applyRevealEffects(container) {
   });
 }
 
-export function initAdminDashboardApp(container) {
+export function initAdminDashboardApp(container, { activeSection = 'Dashboard' } = {}) {
   if (!container) return;
-  const state = getInitialState();
+  const state = getInitialState(activeSection);
 
   const rerender = (animateCounters = true) => {
     container.innerHTML = `

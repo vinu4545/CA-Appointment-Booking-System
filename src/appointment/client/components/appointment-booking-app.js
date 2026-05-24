@@ -1,6 +1,13 @@
 import { buildModalMarkup, hideModal, showModal } from '../../shared/components/modal.js';
+import { buildAdminLoginModalMarkup } from '../../shared/components/admin-login-modal.js';
 import { bookingProcess, bookingTypes } from '../data/mock-booking-data.js';
 import { createAppointmentRequest } from '../../shared/services/appointment-api.js';
+import {
+  bindAdminLoginInteractions,
+  createAdminLoginState,
+  shouldAutoOpenAdminLogin,
+  syncAdminLoginModal,
+} from '../../shared/services/admin-login-handler.js';
 import {
   findFirstAvailableDate,
   findFirstAvailableSlot,
@@ -19,6 +26,7 @@ function getInitialState() {
     selectedDate,
     selectedTime: initialSlots[0] || '',
     appointmentType: bookingTypes[0]?.value || '',
+    adminLogin: createAdminLoginState({ open: shouldAutoOpenAdminLogin() }),
     form: {
       fullName: '',
       email: '',
@@ -109,6 +117,7 @@ function renderBookingPageMarkup(state) {
           <div class="appointment-hero__actions">
             <a href="#appointment-form-section" class="theme-btn btn-style-one">Book now <span class="fa fa-calendar"></span></a>
             <a href="tel:+919665945287" class="theme-btn btn-style-thirteen">Call the office <span class="fa fa-phone"></span></a>
+            <button type="button" class="theme-btn btn-style-thirteen appointment-hero__admin-btn" data-admin-login-open>Admin Login <span class="fa fa-lock"></span></button>
           </div>
         </div>
       </div>
@@ -492,6 +501,12 @@ export function initClientAppointmentApp(container) {
     container.innerHTML = `
       <div class="appointment-shell">
         ${renderBookingPageMarkup(state)}
+        <div class="appointment-modal-layer" data-admin-login-layer>
+          ${buildAdminLoginModalMarkup(state.adminLogin)}
+        </div>
+        <div class="appointment-modal-layer" data-admin-login-layer>
+          ${buildAdminLoginModalMarkup(state.adminLogin)}
+        </div>
         <div class="appointment-modal-layer" data-modal-layer>
           ${buildModalMarkup({
             title: 'Appointment Request Submitted Successfully',
@@ -504,6 +519,7 @@ export function initClientAppointmentApp(container) {
     bindCalendarInteraction(container, state, rerender);
     bindForm(container, state, rerender);
     bindModal(container);
+    syncAdminLoginModal(container, state.adminLogin);
     updateSummary(container, state);
     applyRevealEffects(container);
     container.querySelector('[data-modal]')?.classList.remove('is-visible');
@@ -512,6 +528,8 @@ export function initClientAppointmentApp(container) {
   bindCalendarInteraction(container, state, rerender);
   bindForm(container, state, rerender);
   bindModal(container);
+  bindAdminLoginInteractions(container, state.adminLogin, rerender);
+  syncAdminLoginModal(container, state.adminLogin);
   updateSummary(container, state);
   applyRevealEffects(container);
 }
