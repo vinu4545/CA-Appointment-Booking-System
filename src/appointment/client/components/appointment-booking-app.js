@@ -1,11 +1,19 @@
 import { buildModalMarkup, hideModal, showModal } from '../../shared/components/modal.js';
-import { bookingCalendar, bookingProcess, bookingSlots, bookingSlotMatrix, bookingTypes } from '../data/mock-booking-data.js';
+import { bookingProcess, bookingTypes } from '../data/mock-booking-data.js';
 import { createAppointmentRequest } from '../../shared/services/appointment-api.js';
+import {
+  findFirstAvailableDate,
+  findFirstAvailableSlot,
+  getAvailabilityCalendar,
+  getAvailableSlotsForDate,
+  isDateAvailable,
+} from '../../shared/services/availability-store.js';
 import { formatAppointmentDate, validateAppointmentForm } from '../../shared/utils/validation.js';
+import { slotTimes } from '../../shared/constants/appointment-data.js';
 
 function getInitialState() {
-  const selectedDate = bookingCalendar.find((item) => item.available)?.date || bookingCalendar[0].date;
-  const initialSlots = bookingSlotMatrix[selectedDate] || [];
+  const selectedDate = findFirstAvailableDate() || getAvailabilityCalendar()[0]?.date || '';
+  const initialSlots = getAvailableSlotsForDate(selectedDate);
 
   return {
     selectedDate,
@@ -26,7 +34,7 @@ function getInitialState() {
 }
 
 function renderCalendarButtons(state) {
-  return bookingCalendar
+  return getAvailabilityCalendar()
     .map((day) => {
       const isSelected = state.selectedDate === day.date;
       const isAvailable = day.available;
@@ -50,8 +58,8 @@ function renderCalendarButtons(state) {
 }
 
 function renderTimeSlots(state) {
-  const selectedSlots = bookingSlotMatrix[state.selectedDate] || [];
-  return bookingSlots
+  const selectedSlots = getAvailableSlotsForDate(state.selectedDate);
+  return slotTimes
     .map((slot) => {
       const isAvailable = selectedSlots.includes(slot);
       const isSelected = state.selectedTime === slot;
@@ -88,7 +96,8 @@ function renderProcessCards() {
 }
 
 function renderBookingPageMarkup(state) {
-  const selectedSlots = bookingSlotMatrix[state.selectedDate] || [];
+  const selectedSlots = getAvailableSlotsForDate(state.selectedDate);
+  const isSelectedDateAvailable = isDateAvailable(state.selectedDate);
   return `
     <section class="appointment-hero section-hero" style="background-image:url('images/background/8.jpg')">
       <div class="appointment-overlay"></div>
@@ -127,7 +136,7 @@ function renderBookingPageMarkup(state) {
             <div class="slot-panel">
               <div class="slot-panel__header">
                 <h4>Available slots</h4>
-                <p>${selectedSlots.length ? `${selectedSlots.length} slots available for ${formatAppointmentDate(state.selectedDate)}` : 'This date is blocked.'}</p>
+                <p>${isSelectedDateAvailable ? `${selectedSlots.length} slots available for ${formatAppointmentDate(state.selectedDate)}` : 'This date is blocked.'}</p>
               </div>
               <div class="slot-chip-group" data-slot-grid>${renderTimeSlots(state)}</div>
             </div>
@@ -213,7 +222,7 @@ function renderBookingPageMarkup(state) {
               <div class="floating-field">
                 <select name="preferredTime" id="preferredTime">
                   <option value="">Select a slot</option>
-                  ${bookingSlots
+                  ${slotTimes
                     .map(
                       (slot) => `<option value="${slot}" ${state.form.preferredTime === slot ? 'selected' : ''} ${selectedSlots.includes(slot) ? '' : 'disabled'}>${slot}</option>`,
                     )
@@ -309,8 +318,10 @@ function bindCalendarInteraction(container, state, rerender) {
   container.querySelector('[data-calendar-grid]')?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-date]');
     if (!button || button.disabled) return;
-    state.selectedDate = button.getAttribute('data-date');
-    const nextSlots = bookingSlotMatrix[state.selectedDate] || [];
+    const selectedDate = button.getAttribute('data-date');
+    if (!isDateAvailable(selectedDate)) return;
+    state.selectedDate = selectedDate;
+    const nextSlots = getAvailableSlotsForDate(state.selectedDate);
     state.selectedTime = nextSlots[0] || '';
     state.form.preferredDate = state.selectedDate;
     state.form.preferredTime = state.selectedTime;
@@ -344,9 +355,14 @@ function bindForm(container, state, rerender) {
     state.form[name] = value;
     if (name === 'preferredDate') {
       state.selectedDate = value;
-      const nextSlots = bookingSlotMatrix[value] || [];
-      state.selectedTime = nextSlots[0] || '';
-      state.form.preferredTime = state.selectedTime;
+      if (isDateAvailable(value)) {
+        const nextSlots = getAvailableSlotsForDate(value);
+        state.selectedTime = nextSlots[0] || '';
+        state.form.preferredTime = state.selectedTime;
+      } else {
+        state.selectedTime = '';
+        state.form.preferredTime = '';
+      }
     }
     if (name === 'appointmentType') {
       state.appointmentType = value;
@@ -358,7 +374,10 @@ function bindForm(container, state, rerender) {
     event.preventDefault();
     const submitButton = container.querySelector('[data-submit-btn]');
     const payload = { ...state.form, preferredDate: state.selectedDate, preferredTime: state.selectedTime };
-    const errors = validateAppointmentForm(payload);
+    const errors = validateAppointmentForm(payload, {
+      isDateAvailable,
+      isTimeAvailable: (dateKey, slot) => getAvailableSlotsForDate(dateKey).includes(slot),
+    });
     state.errors = errors;
     updateFieldErrors(container, errors);
 
@@ -384,6 +403,14 @@ function bindForm(container, state, rerender) {
     state.form.preferredDate = state.selectedDate;
     state.form.preferredTime = state.selectedTime;
     state.errors = {};
+
+    if (!isDateAvailable(state.selectedDate)) {
+      state.selectedDate = findFirstAvailableDate();
+    }
+    state.selectedTime = findFirstAvailableSlot(state.selectedDate);
+    state.form.preferredDate = state.selectedDate;
+    state.form.preferredTime = state.selectedTime;
+
     rerender();
 
     const modal = container.querySelector('[data-modal]');
@@ -406,8 +433,8 @@ function bindForm(container, state, rerender) {
     state.form.appointmentType = bookingTypes[0]?.value || '';
     state.appointmentType = state.form.appointmentType;
     state.errors = {};
-    state.selectedDate = bookingCalendar.find((item) => item.available)?.date || bookingCalendar[0].date;
-    state.selectedTime = (bookingSlotMatrix[state.selectedDate] || [])[0] || '';
+    state.selectedDate = findFirstAvailableDate() || getAvailabilityCalendar()[0]?.date || '';
+    state.selectedTime = findFirstAvailableSlot(state.selectedDate);
     state.form.preferredDate = state.selectedDate;
     state.form.preferredTime = state.selectedTime;
     rerender();

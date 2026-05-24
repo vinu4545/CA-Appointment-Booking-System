@@ -1,5 +1,6 @@
 import { buildModalMarkup, hideModal, showModal } from '../../shared/components/modal.js';
 import { adminAppointments, calendarLegend, sidebarItems, slotManagementDefaults, statsCards } from '../data/mock-dashboard-data.js';
+import { getBlockedDates, setDateAvailability } from '../../shared/services/availability-store.js';
 import { updateAppointmentStatus } from '../../shared/services/appointment-api.js';
 
 function getInitialState() {
@@ -8,7 +9,7 @@ function getInitialState() {
     activeSection: 'Dashboard',
     selectedAppointment: adminAppointments[0] || null,
     appointments: [...adminAppointments],
-    blockedDates: [...slotManagementDefaults.blockedDates],
+    blockedDates: getBlockedDates(),
     workingHours: slotManagementDefaults.workingHours,
     interval: slotManagementDefaults.interval,
     // calendar view state
@@ -444,7 +445,8 @@ function bindAdminInteractions(container, state, rerender) {
     const dateInput = container.querySelector('[data-block-date]');
     const dateValue = dateInput?.value;
     if (!dateValue || state.blockedDates.includes(dateValue)) return;
-    state.blockedDates = [dateValue, ...state.blockedDates];
+    setDateAvailability(dateValue, false);
+    state.blockedDates = getBlockedDates();
     addNotification(state, {
       title: 'Date Blocked',
       message: `Blocked date ${dateValue} was added to slot management.`,
@@ -456,7 +458,8 @@ function bindAdminInteractions(container, state, rerender) {
     const button = event.target.closest('[data-remove-block]');
     if (!button) return;
     const blockedDate = button.getAttribute('data-remove-block');
-    state.blockedDates = state.blockedDates.filter((date) => date !== blockedDate);
+    setDateAvailability(blockedDate, true);
+    state.blockedDates = getBlockedDates();
     addNotification(state, {
       title: 'Date Unblocked',
       message: `Blocked date ${blockedDate} was removed from slot management.`,
@@ -481,6 +484,8 @@ function bindAdminInteractions(container, state, rerender) {
         });
       }
       rerender();
+        state.blockedDates = getBlockedDates();
+
       return;
     }
 

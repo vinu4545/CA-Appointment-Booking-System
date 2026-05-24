@@ -1,3 +1,5 @@
+import { reserveAppointmentSlot } from './availability-store.js';
+
 const STORE_KEY = 'ssar_appointment_requests';
 
 function readStore() {
@@ -31,6 +33,9 @@ export async function createAppointmentRequest(payload) {
     ...payload,
   };
   writeStore([nextRecord, ...currentRecords]);
+  if (payload?.preferredDate && payload?.preferredTime) {
+    reserveAppointmentSlot(payload.preferredDate, payload.preferredTime);
+  }
   return nextRecord;
 }
 

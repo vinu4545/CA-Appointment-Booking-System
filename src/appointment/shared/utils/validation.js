@@ -13,7 +13,7 @@ export function formatTimeLabel(value) {
   return value || 'Select a slot';
 }
 
-export function validateAppointmentForm(values) {
+export function validateAppointmentForm(values, options = {}) {
   const errors = {};
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const phonePattern = /^[0-9]{10}$/;
@@ -25,6 +25,19 @@ export function validateAppointmentForm(values) {
   if (!values.preferredDate) errors.preferredDate = 'Select a preferred date.';
   if (!values.preferredTime) errors.preferredTime = 'Select an available time slot.';
   if (!values.message.trim()) errors.message = 'Add a short note for the CA team.';
+
+  if (values.preferredDate && typeof options.isDateAvailable === 'function' && !options.isDateAvailable(values.preferredDate)) {
+    errors.preferredDate = 'Selected date is not available.';
+  }
+
+  if (
+    values.preferredDate &&
+    values.preferredTime &&
+    typeof options.isTimeAvailable === 'function' &&
+    !options.isTimeAvailable(values.preferredDate, values.preferredTime)
+  ) {
+    errors.preferredTime = 'Selected slot is not available.';
+  }
 
   return errors;
 }
