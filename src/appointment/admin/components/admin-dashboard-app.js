@@ -15,6 +15,31 @@ function getInitialState() {
     viewYear: new Date().getFullYear(),
     viewMonth: new Date().getMonth(),
     selectedDay: null,
+    notificationsEnabled: true,
+    notificationsPanelOpen: false,
+    notifications: [
+      {
+        id: 1,
+        title: 'Booking Confirmed',
+        message: 'Your slot at 10:00 AM is confirmed',
+        seen: false,
+        timestamp: '2026-05-25T10:00:00',
+      },
+      {
+        id: 2,
+        title: 'Reminder',
+        message: 'Audit review starts in 30 minutes',
+        seen: false,
+        timestamp: '2026-05-24T11:15:00',
+      },
+      {
+        id: 3,
+        title: 'Status Updated',
+        message: 'A client request was marked approved',
+        seen: true,
+        timestamp: '2026-05-24T09:40:00',
+      },
+    ],
   };
 }
 
@@ -29,6 +54,46 @@ function formatDateLabel(dateValue) {
 
 function getStatusClass(status) {
   return `status-badge status-badge--${status.toLowerCase()}`;
+}
+
+function getUnseenCount(notifications) {
+  return notifications.filter((notification) => !notification.seen).length;
+}
+
+function formatRelativeTime(timestamp) {
+  const now = Date.now();
+  const target = new Date(timestamp).getTime();
+  const diffMs = Math.max(0, now - target);
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return 'Just now';
+  if (diffMs < hour) {
+    const mins = Math.floor(diffMs / minute);
+    return `${mins} min ago`;
+  }
+  if (diffMs < day) {
+    const hours = Math.floor(diffMs / hour);
+    return `${hours} hr ago`;
+  }
+  const days = Math.floor(diffMs / day);
+  return `${days} day${days > 1 ? 's' : ''} ago`;
+}
+
+function addNotification(state, payload) {
+  if (!state.notificationsEnabled) return;
+  const nextId = state.notifications.length ? Math.max(...state.notifications.map((item) => Number(item.id) || 0)) + 1 : 1;
+  state.notifications = [
+    {
+      id: nextId,
+      title: payload.title,
+      message: payload.message,
+      seen: false,
+      timestamp: new Date().toISOString(),
+    },
+    ...state.notifications,
+  ];
 }
 
 function renderStats() {
@@ -161,6 +226,61 @@ function renderCalendarGrid(state) {
   `;
 }
 
+function renderNotificationPanel(state) {
+  return `
+    <div class="notification-panel ${state.notificationsPanelOpen ? 'is-open' : ''}" data-notification-panel>
+      <div class="notification-panel__header">
+        <h4>Notifications</h4>
+        <button
+          type="button"
+          class="notif-toggle ${state.notificationsEnabled ? 'is-on' : 'is-off'}"
+          data-toggle-notifications
+          aria-label="Toggle notifications"
+          aria-pressed="${state.notificationsEnabled ? 'true' : 'false'}"
+        >
+          <span class="notif-toggle__knob"></span>
+        </button>
+      </div>
+      <div class="notification-panel__body">
+        ${
+          state.notifications.length === 0
+            ? '<p class="notification-empty">No notifications</p>'
+            : state.notifications
+                .map(
+                  (notification) => `
+                    <article class="notification-item ${notification.seen ? 'is-seen' : 'is-unseen'}" data-notification-id="${notification.id}">
+                      <div class="notification-item__head">
+                        <strong>${notification.title}</strong>
+                        <span>${formatRelativeTime(notification.timestamp)}</span>
+                      </div>
+                      <p>${notification.message}</p>
+                      <div class="notification-item__meta">
+                        <span class="notification-dot ${notification.seen ? 'is-seen' : 'is-unseen'}"></span>
+                        <button type="button" class="text-link" data-mark-seen="${notification.id}">${notification.seen ? 'Seen' : 'Mark as seen'}</button>
+                      </div>
+                    </article>
+                  `,
+                )
+                .join('')
+        }
+      </div>
+    </div>
+  `;
+}
+
+function renderNotificationBell(state) {
+  const unseenCount = getUnseenCount(state.notifications);
+  return `
+    <div class="notification-wrap" data-notification-root>
+      <button type="button" class="icon-chip notification-bell" data-notification-bell aria-label="Open notifications" aria-expanded="${state.notificationsPanelOpen ? 'true' : 'false'}">
+        <i class="fa fa-bell-o"></i>
+        ${unseenCount > 0 ? `<span class="notification-badge">${unseenCount}</span>` : ''}
+      </button>
+      ${renderNotificationPanel(state)}
+    </div>
+  `;
+}
+
 function renderAdminMarkup(state) {
   return `
     <div class="admin-layout">
@@ -186,7 +306,7 @@ function renderAdminMarkup(state) {
             <input type="search" data-search-input placeholder="Search appointments, status, or date" value="${state.searchTerm}">
           </div>
           <div class="admin-topbar__actions">
-            <button type="button" class="icon-chip"><i class="fa fa-bell-o"></i></button>
+            ${renderNotificationBell(state)}
             <div class="admin-profile">
               <span>RU</span>
               <div>
@@ -331,6 +451,10 @@ function bindAdminInteractions(container, state, rerender) {
     const dateValue = dateInput?.value;
     if (!dateValue || state.blockedDates.includes(dateValue)) return;
     state.blockedDates = [dateValue, ...state.blockedDates];
+    addNotification(state, {
+      title: 'Date Blocked',
+      message: `Blocked date ${dateValue} was added to slot management.`,
+    });
     rerender();
   });
 
@@ -339,6 +463,10 @@ function bindAdminInteractions(container, state, rerender) {
     if (!button) return;
     const blockedDate = button.getAttribute('data-remove-block');
     state.blockedDates = state.blockedDates.filter((date) => date !== blockedDate);
+    addNotification(state, {
+      title: 'Date Unblocked',
+      message: `Blocked date ${blockedDate} was removed from slot management.`,
+    });
     rerender();
   });
 
@@ -351,6 +479,13 @@ function bindAdminInteractions(container, state, rerender) {
       const appointmentId = acceptButton.getAttribute('data-accept');
       state.appointments = state.appointments.map((appointment) => (appointment.id === appointmentId ? { ...appointment, status: 'Approved' } : appointment));
       await updateAppointmentStatus(appointmentId, 'Approved');
+      const appointment = state.appointments.find((item) => item.id === appointmentId);
+      if (appointment) {
+        addNotification(state, {
+          title: 'Appointment Approved',
+          message: `${appointment.clientName} at ${appointment.time} was marked approved.`,
+        });
+      }
       rerender();
       return;
     }
@@ -359,6 +494,13 @@ function bindAdminInteractions(container, state, rerender) {
       const appointmentId = rejectButton.getAttribute('data-reject');
       state.appointments = state.appointments.map((appointment) => (appointment.id === appointmentId ? { ...appointment, status: 'Rejected' } : appointment));
       await updateAppointmentStatus(appointmentId, 'Rejected');
+      const appointment = state.appointments.find((item) => item.id === appointmentId);
+      if (appointment) {
+        addNotification(state, {
+          title: 'Appointment Rejected',
+          message: `${appointment.clientName} at ${appointment.time} was marked rejected.`,
+        });
+      }
       rerender();
       return;
     }
@@ -398,6 +540,13 @@ function bindAdminInteractions(container, state, rerender) {
       const id = accept.getAttribute('data-accept');
       state.appointments = state.appointments.map((appointment) => (appointment.id === id ? { ...appointment, status: 'Approved' } : appointment));
       await updateAppointmentStatus(id, 'Approved');
+      const appointment = state.appointments.find((item) => item.id === id);
+      if (appointment) {
+        addNotification(state, {
+          title: 'Appointment Approved',
+          message: `${appointment.clientName} at ${appointment.time} was marked approved.`,
+        });
+      }
       rerender();
       return;
     }
@@ -405,6 +554,13 @@ function bindAdminInteractions(container, state, rerender) {
       const id = reject.getAttribute('data-reject');
       state.appointments = state.appointments.map((appointment) => (appointment.id === id ? { ...appointment, status: 'Rejected' } : appointment));
       await updateAppointmentStatus(id, 'Rejected');
+      const appointment = state.appointments.find((item) => item.id === id);
+      if (appointment) {
+        addNotification(state, {
+          title: 'Appointment Rejected',
+          message: `${appointment.clientName} at ${appointment.time} was marked rejected.`,
+        });
+      }
       rerender();
       return;
     }
@@ -419,6 +575,30 @@ function bindAdminInteractions(container, state, rerender) {
       state.activeSection = button.getAttribute('data-nav-item');
       rerender(false);
     });
+  });
+
+  container.querySelector('[data-notification-bell]')?.addEventListener('click', () => {
+    const opening = !state.notificationsPanelOpen;
+    state.notificationsPanelOpen = opening;
+    if (opening) {
+      state.notifications = state.notifications.map((notification) => ({ ...notification, seen: true }));
+    }
+    rerender(false);
+  });
+
+  container.querySelector('[data-toggle-notifications]')?.addEventListener('click', () => {
+    state.notificationsEnabled = !state.notificationsEnabled;
+    rerender(false);
+  });
+
+  container.querySelector('[data-notification-panel]')?.addEventListener('click', (event) => {
+    const markSeenButton = event.target.closest('[data-mark-seen]');
+    if (!markSeenButton) return;
+    const id = Number(markSeenButton.getAttribute('data-mark-seen'));
+    state.notifications = state.notifications.map((notification) =>
+      notification.id === id ? { ...notification, seen: true } : notification,
+    );
+    rerender(false);
   });
 
   // Calendar interactions: month navigation and day selection

@@ -91,11 +91,14 @@
 }
 
 .admin-topbar {
+  position: relative;
+  z-index: 60;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 18px;
   margin-bottom: 22px;
+  overflow: visible;
 }
 
 .admin-search {
@@ -120,9 +123,200 @@
 }
 
 .admin-topbar__actions {
+  position: relative;
+  z-index: 61;
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.notification-wrap {
+  position: relative;
+  z-index: 70;
+  isolation: isolate;
+}
+
+.notification-bell {
+  position: relative;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ed1314;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(237, 19, 20, 0.34);
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(380px, 88vw);
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 17, 17, 0.06);
+  box-shadow: 0 22px 48px rgba(17, 17, 17, 0.14);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+  z-index: 999;
+}
+
+.notification-panel.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.notification-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(17, 17, 17, 0.06);
+}
+
+.notification-panel__header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #111;
+}
+
+.notif-toggle {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  border: 0;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 180ms ease;
+}
+
+.notif-toggle.is-on {
+  background: #f05a2a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.notif-toggle.is-off {
+  background: rgba(17, 17, 17, 0.15);
+}
+
+.notif-toggle__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(17, 17, 17, 0.2);
+  transition: transform 180ms ease;
+}
+
+.notif-toggle.is-on .notif-toggle__knob {
+  transform: translateX(20px);
+}
+
+.notif-toggle.is-on .notif-toggle__knob {
+  background: #fff;
+}
+
+.notif-toggle:hover {
+  box-shadow: 0 0 0 4px rgba(237, 19, 20, 0.08);
+}
+
+.notification-panel__body {
+  max-height: 360px;
+  overflow: auto;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.notification-empty {
+  margin: 0;
+  padding: 16px;
+  text-align: center;
+  color: #666;
+}
+
+.notification-item {
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(17, 17, 17, 0.06);
+  background: #fff;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(17, 17, 17, 0.08);
+}
+
+.notification-item.is-unseen {
+  border-color: rgba(237, 19, 20, 0.18);
+  background: linear-gradient(180deg, rgba(237, 19, 20, 0.06), rgba(255, 255, 255, 1));
+}
+
+.notification-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notification-item__head strong {
+  color: #111;
+  font-size: 14px;
+}
+
+.notification-item__head span {
+  color: #777;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.notification-item p {
+  margin: 8px 0;
+  color: #555;
+  line-height: 1.45;
+  font-size: 13px;
+}
+
+.notification-item__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notification-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.notification-dot.is-unseen {
+  background: #ed1314;
+  box-shadow: 0 0 0 4px rgba(237, 19, 20, 0.14);
+}
+
+.notification-dot.is-seen {
+  background: #aaa;
 }
 
 .icon-chip {
@@ -548,5 +742,10 @@
   .appointment-table-wrap,
   .month-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .notification-panel {
+    right: -12px;
+    width: min(340px, 94vw);
   }
 }
