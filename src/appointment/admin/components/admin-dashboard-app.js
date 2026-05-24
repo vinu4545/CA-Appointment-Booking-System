@@ -197,8 +197,6 @@ function renderCalendarGrid(state) {
     cells.push(new Date(viewYear, viewMonth, d));
   }
 
-  const today = new Date();
-
   return `
     <div class="calendar-header">
       <button type="button" class="month-nav" data-month-prev aria-label="Previous month">&larr;</button>
@@ -214,18 +212,7 @@ function renderCalendarGrid(state) {
           if (!cell) return `<div class="month-day month-day--empty"></div>`;
           const iso = formatLocalDateKey(cell);
           const isBlocked = state.blockedDates.includes(iso);
-          const hasMeeting = state.appointments.some((appointment) => appointment.date === iso);
-          const isToday = cell.toDateString() === today.toDateString();
-          const isSelected = state.selectedDay === iso;
-          const classes = [
-            'month-day',
-            isBlocked ? 'is-blocked' : '',
-            hasMeeting ? 'has-meeting' : '',
-            isToday ? 'is-today' : '',
-            isSelected ? 'is-selected' : '',
-          ]
-            .filter(Boolean)
-            .join(' ');
+          const classes = ['month-day', isBlocked ? 'is-blocked' : ''].filter(Boolean).join(' ');
           return `<button type="button" class="${classes}" data-day="${iso}"><span>${cell.getDate()}</span></button>`;
         })
         .join('')}

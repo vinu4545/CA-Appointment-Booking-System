@@ -667,21 +667,6 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
 }
 
-.month-day.has-meeting {
-  background: rgba(237, 19, 20, 0.1);
-  color: #ed1314;
-}
-
-.month-day.is-today {
-  outline: 2px solid rgba(23, 138, 74, 0.22);
-  box-shadow: 0 0 0 4px rgba(23, 138, 74, 0.06);
-}
-
-.month-day.is-selected {
-  box-shadow: 0 10px 28px rgba(237, 19, 20, 0.18);
-  border: 1px solid rgba(237, 19, 20, 0.22);
-}
-
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
