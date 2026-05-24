@@ -11,6 +11,10 @@ function getInitialState() {
     blockedDates: [...slotManagementDefaults.blockedDates],
     workingHours: slotManagementDefaults.workingHours,
     interval: slotManagementDefaults.interval,
+    // calendar view state
+    viewYear: new Date().getFullYear(),
+    viewMonth: new Date().getMonth(),
+    selectedDay: null,
   };
 }
 
@@ -100,26 +104,57 @@ function renderBlockedDates(blockedDates) {
     .join('');
 }
 
-function renderCalendarGrid() {
+function formatMonthLabel(year, monthIndex) {
+  const d = new Date(year, monthIndex, 1);
+  return d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
+
+function renderCalendarGrid(state) {
   const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  const dates = [];
-  const base = new Date('2026-05-01T00:00:00');
-  for (let index = 0; index < 30; index += 1) {
-    const next = new Date(base);
-    next.setDate(base.getDate() + index);
-    dates.push(next);
+  const { viewYear, viewMonth } = state;
+
+  // first day of month and number of days
+  const firstOfMonth = new Date(viewYear, viewMonth, 1);
+  const startWeek = firstOfMonth.getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  // build cells (leading blanks + days)
+  const cells = [];
+  for (let i = 0; i < startWeek; i += 1) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d += 1) {
+    cells.push(new Date(viewYear, viewMonth, d));
   }
 
+  const today = new Date();
+
   return `
+    <div class="calendar-header">
+      <button type="button" class="month-nav" data-month-prev aria-label="Previous month">&larr;</button>
+      <div class="month-title">${formatMonthLabel(viewYear, viewMonth)}</div>
+      <button type="button" class="month-nav" data-month-next aria-label="Next month">&rarr;</button>
+    </div>
     <div class="month-grid month-grid--labels">
       ${days.map((day) => `<span>${day}</span>`).join('')}
     </div>
     <div class="month-grid">
-      ${dates
-        .map((date) => {
-          const label = date.getDate();
-          const hasMeeting = adminAppointments.some((appointment) => appointment.date === date.toISOString().slice(0, 10));
-          return `<button type="button" class="month-day ${hasMeeting ? 'has-meeting' : ''}"><span>${label}</span></button>`;
+      ${cells
+        .map((cell) => {
+          if (!cell) return `<div class="month-day month-day--empty"></div>`;
+          const iso = cell.toISOString().slice(0, 10);
+          const isBlocked = state.blockedDates.includes(iso);
+          const hasMeeting = state.appointments.some((appointment) => appointment.date === iso);
+          const isToday = cell.toDateString() === today.toDateString();
+          const isSelected = state.selectedDay === iso;
+          const classes = [
+            'month-day',
+            isBlocked ? 'is-blocked' : '',
+            hasMeeting ? 'has-meeting' : '',
+            isToday ? 'is-today' : '',
+            isSelected ? 'is-selected' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+          return `<button type="button" class="${classes}" data-day="${iso}"><span>${cell.getDate()}</span></button>`;
         })
         .join('')}
     </div>
@@ -252,7 +287,7 @@ function renderAdminMarkup(state) {
               </div>
             </div>
             <div class="calendar-board">
-              ${renderCalendarGrid()}
+              ${renderCalendarGrid(state)}
             </div>
           </section>
         </div>
@@ -356,7 +391,24 @@ function bindAdminInteractions(container, state, rerender) {
     }
   });
 
-  container.querySelector('[data-modal]')?.addEventListener('click', (event) => {
+  container.querySelector('[data-modal]')?.addEventListener('click', async (event) => {
+    const accept = event.target.closest('[data-accept]');
+    const reject = event.target.closest('[data-reject]');
+    if (accept) {
+      const id = accept.getAttribute('data-accept');
+      state.appointments = state.appointments.map((appointment) => (appointment.id === id ? { ...appointment, status: 'Approved' } : appointment));
+      await updateAppointmentStatus(id, 'Approved');
+      rerender();
+      return;
+    }
+    if (reject) {
+      const id = reject.getAttribute('data-reject');
+      state.appointments = state.appointments.map((appointment) => (appointment.id === id ? { ...appointment, status: 'Rejected' } : appointment));
+      await updateAppointmentStatus(id, 'Rejected');
+      rerender();
+      return;
+    }
+
     if (event.target.matches('[data-modal-close]')) {
       hideModal(container.querySelector('[data-modal]'));
     }
@@ -367,6 +419,82 @@ function bindAdminInteractions(container, state, rerender) {
       state.activeSection = button.getAttribute('data-nav-item');
       rerender(false);
     });
+  });
+
+  // Calendar interactions: month navigation and day selection
+  container.querySelector('.calendar-board')?.addEventListener('click', (event) => {
+    const prev = event.target.closest('[data-month-prev]');
+    const next = event.target.closest('[data-month-next]');
+    const dayBtn = event.target.closest('[data-day]');
+
+    if (prev) {
+      // previous month
+      if (state.viewMonth === 0) {
+        state.viewMonth = 11;
+        state.viewYear -= 1;
+      } else {
+        state.viewMonth -= 1;
+      }
+      state.selectedDay = null;
+      rerender(false);
+      return;
+    }
+
+    if (next) {
+      // next month
+      if (state.viewMonth === 11) {
+        state.viewMonth = 0;
+        state.viewYear += 1;
+      } else {
+        state.viewMonth += 1;
+      }
+      state.selectedDay = null;
+      rerender(false);
+      return;
+    }
+
+    if (dayBtn) {
+      const iso = dayBtn.getAttribute('data-day');
+      state.selectedDay = iso;
+      const appointmentsForDay = state.appointments.filter((a) => a.date === iso);
+      const modal = container.querySelector('[data-modal]');
+      const modalPanel = modal?.querySelector('.appointment-modal__panel');
+      if (modalPanel) {
+        if (appointmentsForDay.length === 0) {
+          modalPanel.innerHTML = `
+            <button type="button" class="appointment-modal__close" data-modal-close aria-label="Close modal">&times;</button>
+            <h3>No bookings on ${iso}</h3>
+            <p>There are no appointment requests for the selected date.</p>
+            <div class="modal-actions"><button type="button" class="theme-btn btn-style-one" data-modal-close>Close</button></div>
+          `;
+        } else {
+          modalPanel.innerHTML = `
+            <button type="button" class="appointment-modal__close" data-modal-close aria-label="Close modal">&times;</button>
+            <h3>Appointments for ${iso}</h3>
+            <div class="detail-list">
+              ${appointmentsForDay
+                .map(
+                  (appt) => `
+                    <div class="detail-item">
+                      <div>
+                        <strong>${appt.clientName}</strong>
+                        <div class="muted">${appt.time} • ${appt.type}</div>
+                      </div>
+                      <div class="action-group">
+                        <button type="button" class="mini-btn mini-btn--success" data-accept="${appt.id}">Accept</button>
+                        <button type="button" class="mini-btn mini-btn--danger" data-reject="${appt.id}">Reject</button>
+                      </div>
+                    </div>
+                  `,
+                )
+                .join('')}
+            </div>
+            <div class="modal-actions"><button type="button" class="theme-btn btn-style-one" data-modal-close>Close</button></div>
+          `;
+        }
+        showModal(modal);
+      }
+    }
   });
 }
 

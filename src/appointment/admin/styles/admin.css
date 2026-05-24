@@ -407,6 +407,30 @@
   padding-top: 6px;
 }
 
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.month-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+}
+
+.month-nav {
+  border: 0;
+  background: #fff;
+  color: #ed1314;
+  padding: 8px 12px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(17,17,17,0.06);
+  cursor: pointer;
+}
+
 .month-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -425,15 +449,28 @@
 
 .month-day {
   min-height: 66px;
-  border-radius: 16px;
-  background: #f6f6f6;
+  border-radius: 12px;
+  background: #fff;
   color: #111;
+  border: 1px solid rgba(17,17,17,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-.month-day.has-meeting {
-  background: rgba(237, 19, 20, 0.12);
-  color: #ed1314;
-}
+.month-day:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(17,17,17,0.06); }
+
+.month-day--empty { background: transparent; border: 0; box-shadow: none; cursor: default; }
+
+.month-day.is-blocked { background: rgba(196,36,36,0.06); color: #c42424; border: 1px dashed rgba(196,36,36,0.12); }
+
+.month-day.has-meeting { background: rgba(237,19,20,0.08); color: #ed1314; }
+
+.month-day.is-today { outline: 2px solid rgba(23,138,74,0.12); }
+
+.month-day.is-selected { box-shadow: 0 8px 26px rgba(237,19,20,0.12); border: 1px solid rgba(237,19,20,0.14); }
 
 .detail-grid {
   display: grid;
