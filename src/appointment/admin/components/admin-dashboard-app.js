@@ -52,6 +52,13 @@ function formatDateLabel(dateValue) {
   });
 }
 
+function formatLocalDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getStatusClass(status) {
   return `status-badge status-badge--${status.toLowerCase()}`;
 }
@@ -205,7 +212,7 @@ function renderCalendarGrid(state) {
       ${cells
         .map((cell) => {
           if (!cell) return `<div class="month-day month-day--empty"></div>`;
-          const iso = cell.toISOString().slice(0, 10);
+          const iso = formatLocalDateKey(cell);
           const isBlocked = state.blockedDates.includes(iso);
           const hasMeeting = state.appointments.some((appointment) => appointment.date === iso);
           const isToday = cell.toDateString() === today.toDateString();
